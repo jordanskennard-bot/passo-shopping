@@ -3,9 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
 
-const url = process.env.DATABASE_URL;
+let url = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+if (url) {
+  const u = new URL(url);
+  u.searchParams.delete("sslmode");
+  u.searchParams.delete("supa");
+  url = u.toString();
+}
 if (!url) {
-  console.error("DATABASE_URL is not set");
+  console.error("DATABASE_URL (or POSTGRES_URL) is not set");
   process.exit(1);
 }
 

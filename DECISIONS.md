@@ -14,3 +14,4 @@ Code and implementation decisions for passo-shopping. Product and business decis
 10. **10 Nov 2026. Ingestion is row by row.** Fine for tens of thousands of offers; batch it if a feed run nears the 300 second function limit.
 11. **10 Nov 2026. Functions run in London (`lhr1`)** to sit next to a London database and UK shoppers.
 12. **10 Nov 2026. Friendly error page** while the catalogue database is unavailable, so the site never shows a raw error to a shopper or Google reviewer.
+13. **10 Nov 2026. Database connection comes from the Supabase Vercel integration** (`POSTGRES_URL`), or `DATABASE_URL` if set. `sslmode` is stripped from the URL so the code's ssl setting applies.

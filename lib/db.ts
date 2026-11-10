@@ -25,7 +25,7 @@ export async function getDb(): Promise<Db> {
 }
 
 async function createDb(): Promise<Db> {
-  const url = process.env.DATABASE_URL;
+  const url = databaseUrl();
   if (url) {
     const { Pool } = await import("pg");
     const pool = new Pool({
@@ -71,5 +71,23 @@ export async function migrate(db: Db) {
   const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
   for (const file of files) {
     await db.query(fs.readFileSync(path.join(dir, file), "utf8"));
+  }
+}
+
+/**
+ * DATABASE_URL if set, otherwise the variable the Supabase Vercel integration
+ * creates. sslmode is removed from the URL because pg lets it override the ssl
+ * option, and Supabase's certificate chain needs rejectUnauthorized: false.
+ */
+export function databaseUrl(): string | null {
+  const raw = process.env.DATABASE_URL || process.env.POSTGRES_URL || null;
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    u.searchParams.delete("sslmode");
+    u.searchParams.delete("supa");
+    return u.toString();
+  } catch {
+    return raw;
   }
 }
