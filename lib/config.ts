@@ -14,7 +14,7 @@ export const company = {
   number: "17208051",
   registeredIn: "England and Wales",
   address: ["5 Croftway", "York", "YO26 5LU", "United Kingdom"],
-  contactEmail: process.env.CONTACT_EMAIL ?? "jordan@passoagency.com",
+  contactEmail: process.env.CONTACT_EMAIL ?? "shopping@passoagency.com",
   // Never the founder's personal mobile. Leave unset unless a business line exists.
   contactPhone: process.env.CONTACT_PHONE ?? "",
   parentSite: "https://passoagency.com",
