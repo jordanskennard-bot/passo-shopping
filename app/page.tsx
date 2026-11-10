@@ -18,7 +18,7 @@ export default async function Home() {
       <div className="eyebrow">Price comparison</div>
       <h1>Compare prices from UK shops</h1>
       <p className="lede">
-        Find the same product across {plural(stats.merchants, "shop")} and see the full price including delivery. We
+        Find the same product across {stats.merchants > 0 ? plural(stats.merchants, "UK shop") : "UK shops"} and see the full price including delivery. We
         do not sell anything ourselves: every offer links to the shop.
       </p>
 
