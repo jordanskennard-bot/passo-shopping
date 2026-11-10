@@ -1,0 +1,129 @@
+/* Passo design system tokens: paper, ink, rosa. No shadows, no gradients, no icon sets. */
+:root {
+  --paper: #f2efe7;
+  --paper-2: #ece8dd;
+  --paper-3: #e4dfd2;
+  --rule: #d8d2c2;
+  --ink: #1a1a18;
+  --ink-2: #3a3a36;
+  --ink-3: #6b6b63;
+  --ink-4: #9a9a8e;
+  --rosa: #e5326a;
+  --forest: #3d6b4a;
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --wrap: 1120px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a { color: inherit; text-underline-offset: 3px; }
+a:hover { color: var(--rosa); }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; line-height: 1.15; margin: 0 0 0.5em; }
+h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.05rem; }
+
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 16px; }
+
+.site-header { border-bottom: 1px solid var(--rule); }
+.site-header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
+.brand { font-family: var(--serif); font-size: 1.3rem; text-decoration: none; white-space: nowrap; }
+.brand span { color: var(--ink-3); }
+.site-header nav { display: flex; gap: 18px; font-size: 0.9rem; margin-left: auto; }
+.site-header nav a { text-decoration: none; color: var(--ink-2); }
+
+.search { display: flex; flex: 1 1 320px; max-width: 560px; }
+.search input {
+  flex: 1; min-width: 0; font: inherit; padding: 10px 12px;
+  border: 1px solid var(--ink-3); border-right: 0; background: var(--paper); color: var(--ink); border-radius: 0;
+}
+.search button {
+  font: inherit; padding: 10px 16px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper);
+  cursor: pointer; border-radius: 0;
+}
+.search button:hover { background: var(--ink-2); }
+
+main { padding: 32px 0 56px; }
+
+.lede { color: var(--ink-2); max-width: 60ch; font-size: 1.05rem; }
+.muted { color: var(--ink-3); }
+.small { font-size: 0.85rem; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; color: var(--ink-3); margin-bottom: 8px; }
+
+.rule { border: 0; border-top: 1px solid var(--rule); margin: 32px 0; }
+
+.grid { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.card { background: var(--paper); padding: 16px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; }
+.card:hover { background: var(--paper-2); color: var(--ink); }
+.card .thumb { aspect-ratio: 1 / 1; background: var(--paper-3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.card .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.card .thumb .placeholder { font-family: var(--serif); color: var(--ink-4); font-size: 2rem; }
+.card .title { font-weight: 500; }
+.card .price { font-family: var(--serif); font-size: 1.15rem; }
+.card .meta { font-size: 0.82rem; color: var(--ink-3); }
+
+.layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; }
+@media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+.filters h3 { margin-top: 20px; }
+.filters ul { list-style: none; padding: 0; margin: 0; font-size: 0.9rem; }
+.filters li { padding: 3px 0; }
+.filters a { text-decoration: none; }
+.filters a.on { color: var(--rosa); font-weight: 500; }
+
+.toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 16px; font-size: 0.9rem; }
+.toolbar .sorts a { margin-left: 12px; text-decoration: none; color: var(--ink-3); }
+.toolbar .sorts a.on { color: var(--ink); border-bottom: 1px solid var(--rosa); }
+
+.pager { display: flex; gap: 16px; margin-top: 24px; font-size: 0.9rem; }
+
+.product { display: grid; grid-template-columns: minmax(0, 320px) 1fr; gap: 32px; align-items: start; }
+@media (max-width: 760px) { .product { grid-template-columns: 1fr; } }
+.product .thumb { aspect-ratio: 1 / 1; background: var(--paper-3); display: flex; align-items: center; justify-content: center; }
+.product .thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+table.offers { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+table.offers th { text-align: left; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); border-bottom: 1px solid var(--ink); padding: 8px 8px 8px 0; }
+table.offers td { border-bottom: 1px solid var(--rule); padding: 12px 8px 12px 0; vertical-align: middle; }
+table.offers td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.offers .total { font-family: var(--serif); font-size: 1.1rem; }
+table.offers .best { color: var(--forest); font-size: 0.78rem; display: block; }
+.go { display: inline-block; padding: 8px 12px; border: 1px solid var(--ink); text-decoration: none; white-space: nowrap; font-size: 0.9rem; }
+.go:hover { background: var(--ink); color: var(--paper); }
+.out { color: var(--ink-4); }
+@media (max-width: 600px) {
+  table.offers .hide-sm { display: none; }
+}
+
+.prose { max-width: 68ch; }
+.prose p, .prose li { color: var(--ink-2); }
+
+.cats { columns: 3 200px; list-style: none; padding: 0; }
+.cats li { padding: 4px 0; break-inside: avoid; }
+
+.status { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 6px; border: 1px solid currentColor; }
+.status.pass { color: var(--forest); }
+.status.warn { color: var(--ink-2); }
+.status.fail { color: var(--rosa); }
+
+.site-footer { border-top: 1px solid var(--rule); padding: 28px 0 40px; font-size: 0.85rem; color: var(--ink-3); }
+.site-footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.site-footer a { text-decoration: none; }
+
+@media (max-width: 760px) {
+  .product .thumb { max-width: 220px; }
+}
