@@ -1,6 +1,6 @@
 # Decisions
 
-Code and implementation decisions for passo-shopping. Product and business decisions live in the Passo plan (`plan/decisions.md`, D-101 for this site).
+Code and implementation decisions for passo-shopping. Product and business decisions live in the Passo plan (`plan/decisions.md`, D-101 and D-103 for this site).
 
 1. **10 Nov 2026. Separate repo and database.** The comparison site is a public consumer site with a large catalogue and its own uptime needs, so it lives outside passo-prospects, with its own Postgres. No client data is stored here. (Jordan, 10 Nov 2026.)
 2. **10 Nov 2026. Domain shopping.passoagency.com, display name "Passo Shopping".** Google requires the display name to reflect the business or domain. (Domain: Jordan, 10 Nov 2026.)
@@ -12,3 +12,5 @@ Code and implementation decisions for passo-shopping. Product and business decis
 8. **10 Nov 2026. No cookies, no analytics.** Removes the need for a consent banner under PECR. Revisit only if analytics become necessary.
 9. **10 Nov 2026. Compliance targets:** 60 merchants (Google's minimum is 50) and 50 products with two or more merchants. Both configurable by environment variable.
 10. **10 Nov 2026. Ingestion is row by row.** Fine for tens of thousands of offers; batch it if a feed run nears the 300 second function limit.
+11. **10 Nov 2026. Functions run in London (`lhr1`)** to sit next to a London database and UK shoppers.
+12. **10 Nov 2026. Friendly error page** while the catalogue database is unavailable, so the site never shows a raw error to a shopper or Google reviewer.

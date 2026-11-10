@@ -1,6 +1,15 @@
 {
+  "regions": [
+    "lhr1"
+  ],
   "crons": [
-    { "path": "/api/cron/ingest", "schedule": "17 4 * * *" },
-    { "path": "/api/cron/monitor", "schedule": "47 6 * * *" }
+    {
+      "path": "/api/cron/ingest",
+      "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/cron/monitor",
+      "schedule": "47 6 * * *"
+    }
   ]
 }

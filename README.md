@@ -55,7 +55,7 @@ Both need `Authorization: Bearer $CRON_SECRET`, which Vercel Cron sends.
 
 1. Create a Supabase project for the catalogue and set `DATABASE_URL`; run `npm run migrate`.
 2. Awin publisher account approved; join advertisers in 1 to 2 categories; create the feed in Create-a-Feed (CSV, gzip) and set `AWIN_FEED_URLS`. Verify the column names in `lib/feeds/awin.ts` against the first real feed.
-3. Vercel project from this repo; add `shopping.passoagency.com` and the DNS record Vercel gives.
+3. DNS (done in Vercel 10 Nov 2026 except the record): at Namecheap, add a CNAME record, host `shopping`, value `27faafb01a94d8d0.vercel-dns-017.com.` (Vercel's fallback `cname.vercel-dns.com.` also works). Vercel project: `passo-shopping`, functions in London (`lhr1`). Put the catalogue database in London too (Supabase region eu-west-2).
 4. Set `CRON_SECRET`, `INTERNAL_USER`, `INTERNAL_PASSWORD` and the SMTP variables.
 5. Legal pages are drafts: review them in the lawyer hour (plan Q-009).
 6. When the self-check passes with 60+ merchants: Google CSS sign-up (Phase 3 of `claude/passo-css-build-brief.md` in the Passo Project).
