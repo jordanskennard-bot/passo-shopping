@@ -47,10 +47,18 @@ export function leafCategory(path: string | null | undefined): string | null {
   return parts.length ? parts[parts.length - 1] : null;
 }
 
-/** Parses "12.99", "£12.99" or "12,99" into pence. */
+/**
+ * Parses a price into pence. Handles "12.99", "£12.99", "12,99", "£1,299.00",
+ * "10.00 GBP" and Google shipping strings such as "GB:::4.99 GBP" (the last
+ * number wins).
+ */
 export function toPence(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined || value === "") return null;
-  const n = typeof value === "number" ? value : Number(String(value).replace(/[£\s]/g, "").replace(",", "."));
+  if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? Math.round(value * 100) : null;
+  const cleaned = String(value).replace(/,(?=\d{3}(\D|$))/g, "");
+  const numbers = cleaned.match(/\d+(?:[.,]\d+)?/g);
+  if (!numbers) return null;
+  const n = Number(numbers[numbers.length - 1].replace(",", "."));
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
 }

@@ -15,3 +15,8 @@ Code and implementation decisions for passo-shopping. Product and business decis
 11. **10 Nov 2026. Functions run in London (`lhr1`)** to sit next to a London database and UK shoppers.
 12. **10 Nov 2026. Friendly error page** while the catalogue database is unavailable, so the site never shows a raw error to a shopper or Google reviewer.
 13. **10 Nov 2026. Database connection comes from the Supabase Vercel integration** (`POSTGRES_URL`), or `DATABASE_URL` if set. `sslmode` is stripped from the URL so the code's ssl setting applies.
+14. **11 Nov 2026. Awin feeds are found from the Feed List Download** (`AWIN_FEED_LIST_URL`), filtered to joined UK English feeds, so each new approval is ingested with no setup. `AWIN_FEED_URLS` stays for extras. Both URLs hold the API key and are never logged.
+15. **11 Nov 2026. Both Awin formats are read.** The Google format (checked on Beauti Outlet) and the classic format. The file's header decides which mapping applies. Classic links get `ean`, `product_GTIN`, `upc`, `delivery_cost` and `model_number` added, with a fallback to Awin's own link if refused.
+16. **11 Nov 2026. A 12 to 14 digit MPN with a valid check digit counts as a GTIN.** Beauti Outlet ships barcodes in `mpn` with `gtin` empty.
+17. **11 Nov 2026. Nightly ingest works oldest feed first, stops starting feeds after 200 seconds and stops reading rows at 280 seconds.** Feeds left over go first the next night, with an email. Batch the writes (decision 10) when that email starts arriving.
+

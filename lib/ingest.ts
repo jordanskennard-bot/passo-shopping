@@ -41,7 +41,7 @@ export async function ingestRows(
   network: string,
   source: string,
   rows: Iterable<FeedRow> | AsyncIterable<FeedRow>,
-  opts: { country?: string; db?: Db } = {},
+  opts: { country?: string; db?: Db; deadline?: number } = {},
 ): Promise<IngestResult> {
   const db = opts.db ?? (await getDb());
   const country = opts.country ?? "GB";
@@ -54,7 +54,13 @@ export async function ingestRows(
   let rowsOk = 0;
   const errorSample: string[] = [];
 
+  let stoppedEarly = false;
   for await (const row of rows as AsyncIterable<FeedRow>) {
+    // Finish cleanly rather than be cut off by the platform's time limit.
+    if (opts.deadline && Date.now() > opts.deadline) {
+      stoppedEarly = true;
+      break;
+    }
     rowsIn++;
     try {
       const problem = validate(row);
@@ -94,6 +100,7 @@ export async function ingestRows(
   }
 
   const errors = rowsIn - rowsOk;
+  if (stoppedEarly) errorSample.unshift(`stopped after ${rowsIn} rows: time limit`);
   await db.query(
     `update feed_runs set finished_at = now(), rows_in = $2, rows_ok = $3, errors = $4, error_sample = $5
      where id = $1`,
@@ -126,7 +133,11 @@ async function upsertMerchant(db: Db, network: string, domain: string, row: Feed
 }
 
 async function findOrCreateProduct(db: Db, merchantId: number, row: FeedRow, country: string): Promise<number> {
-  const gtin = normaliseGtin(row.gtin);
+  // Some feeds (Awin's Google format among them) put the barcode in the MPN
+  // field. A 12 to 14 digit MPN with a valid check digit is treated as a GTIN.
+  const mpnDigits = row.mpn?.trim() ?? "";
+  const gtin =
+    normaliseGtin(row.gtin) ?? (/^\d{12,14}$/.test(mpnDigits) ? normaliseGtin(mpnDigits) : null);
   const brandKey = matchKey(row.brand);
   const mpnKey = matchKey(row.mpn);
   const category = leafCategory(row.category);

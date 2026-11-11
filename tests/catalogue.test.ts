@@ -5,7 +5,7 @@ import { demoRows } from "@/lib/demo";
 import { getProduct, listCategories, searchProducts } from "@/lib/catalogue";
 import { runCompliance } from "@/lib/compliance";
 import { ean13, normaliseGtin, toPence } from "@/lib/normalise";
-import { awinColumns } from "@/lib/feeds/awin";
+import { awinColumns, awinGoogleColumns, parseFeedList, withExtraColumns } from "@/lib/feeds/awin";
 import { parseCsv } from "@/lib/feeds/csv";
 
 let db: Db;
@@ -165,5 +165,60 @@ describe("awin adapter", () => {
     expect(res.rowsOk).toBe(1);
     const [m] = await db.query<{ domain: string }>("select domain from merchants");
     expect(m.domain).toBe("shop-a.example");
+  });
+});
+
+describe("awin google format and feed list", () => {
+  it("reads prices with currency codes, shipping strings and thousands", () => {
+    expect(toPence("10.00 GBP")).toBe(1000);
+    expect(toPence("GB:::4.99 GBP")).toBe(499);
+    expect(toPence("£1,299.00")).toBe(129900);
+    expect(toPence("£3,50")).toBe(350);
+  });
+
+  it("maps a Google-format row and treats a barcode in the MPN as a GTIN", async () => {
+    const code = ean13("505756619866");
+    const csv = [
+      `advertiser_id,advertiser_name,id,title,link,image_link,aw_deep_link,product_type,gtin,mpn,brand,availability,price,sale_price,shipping`,
+      `129953,"Beauti Outlet",4860,"Revlon Lipstick",https://beautioutlet.example/p/1,https://img.example/1.jpg,https://www.awin1.com/pclick.php?p=9,Makeup > Lips,,${code},Revlon,in_stock,3.00 GBP,2.50 GBP,GB:::3.95 GBP`,
+      `129953,"Beauti Outlet",4861,"Revlon Gloss",https://beautioutlet.example/p/2,,,Makeup,,ABC-1,Revlon,out_of_stock,2.99 GBP,,`,
+    ].join("\n");
+    const rows = [];
+    for await (const r of parseCsv(csv, awinGoogleColumns)) rows.push(r);
+    expect(rows[0]).toMatchObject({ merchantName: "Beauti Outlet", sku: "4860", pricePence: 250, deliveryPence: 395, inStock: true });
+    expect(rows[1].inStock).toBe(false);
+    const res = await ingestRows("awin", "test", rows);
+    expect(res.rowsOk).toBe(2);
+    const p = await db.query<{ gtin: string | null; category: string | null }>("select gtin, category from products order by id");
+    expect(p[0].gtin).toBe(normaliseGtin(code));
+    expect(p[0].category).toBe("Lips");
+    expect(p[1].gtin).toBeNull();
+  });
+
+  it("keeps only joined UK feeds from the feed list", () => {
+    const list = [
+      `Advertiser ID,Advertiser Name,Primary Region,Membership Status,Datafeed Format,Feed ID,Feed Name,Language,Vertical,Last Imported,Last Checked,No of products,URL`,
+      `"1","Joined UK","GB","active","Google","F1","","English","Retail","","","10","https://ui.awin.example/feed/F1.csv.gz"`,
+      `"2","Not joined","GB","Not Joined","Google","F2","","English","Retail","","","10","https://ui.awin.example/feed/F2.csv.gz"`,
+      `"3","Joined US","US","active","Awin","3","","English","","","","10","https://productdata.awin.example/x"`,
+      `"4","Classic UK","GB","active","Awin","98","Default","English","","","","8896","https://productdata.awin.example/datafeed/download/apikey/K/fid/98/format/csv/columns/merchant_id%2Cean/"`,
+    ].join("\n");
+    const feeds = parseFeedList(list);
+    expect(feeds.map((f) => f.advertiserName)).toEqual(["Joined UK", "Classic UK"]);
+    expect(feeds[0].format).toBe("google");
+    expect(feeds[1].format).toBe("awin");
+  });
+
+  it("adds barcode and delivery columns to a classic link without duplicating", () => {
+    const url = "https://productdata.awin.example/datafeed/download/apikey/K/fid/98/format/csv/columns/merchant_id%2Cean/";
+    const out = decodeURIComponent(withExtraColumns(url));
+    expect(out.endsWith("/columns/merchant_id,ean,product_GTIN,upc,delivery_cost,model_number/")).toBe(true);
+    expect(withExtraColumns("https://ui.awin.example/feed/F1.csv.gz")).toBe("https://ui.awin.example/feed/F1.csv.gz");
+  });
+
+  it("stops cleanly at a deadline", async () => {
+    const res = await ingestRows("awin", "test", [row({}), row({ sku: "A2" })], { deadline: Date.now() - 1 });
+    expect(res.rowsIn).toBe(0);
+    expect(res.errorSample[0]).toMatch(/time limit/);
   });
 });

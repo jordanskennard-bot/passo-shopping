@@ -46,7 +46,7 @@ npm run dev
 
 ## Scheduled jobs (vercel.json)
 
-- `/api/cron/ingest` 04:17 daily: downloads each `AWIN_FEED_URLS` feed and loads it.
+- `/api/cron/ingest` 04:17 daily: reads the Awin feed list (`AWIN_FEED_LIST_URL`), loads every joined UK feed oldest first, then any `AWIN_FEED_URLS`.
 - `/api/cron/monitor` 06:47 daily: runs the compliance checks with link sampling, saves the run, emails on any warning or failure.
 
 Both need `Authorization: Bearer $CRON_SECRET`, which Vercel Cron sends.
@@ -54,7 +54,7 @@ Both need `Authorization: Bearer $CRON_SECRET`, which Vercel Cron sends.
 ## Before going live
 
 1. Create a Supabase project for the catalogue and set `DATABASE_URL`; run `npm run migrate`.
-2. Awin publisher account approved; join advertisers in 1 to 2 categories; create the feed in Create-a-Feed (CSV, gzip) and set `AWIN_FEED_URLS`. Verify the column names in `lib/feeds/awin.ts` against the first real feed.
+2. Awin publisher account approved (3151486). In Toolbox > Create-a-Feed, copy the Feed List Download link into `AWIN_FEED_LIST_URL` in Vercel (production, sensitive). New approvals are then picked up each night.
 3. DNS (done in Vercel 10 Nov 2026 except the record): at Namecheap, add a CNAME record, host `shopping`, value `27faafb01a94d8d0.vercel-dns-017.com.` (Vercel's fallback `cname.vercel-dns.com.` also works). Vercel project: `passo-shopping`, functions in London (`lhr1`). Put the catalogue database in London too (Supabase region eu-west-2).
 4. Set `CRON_SECRET`, `INTERNAL_USER`, `INTERNAL_PASSWORD` and the SMTP variables.
 5. Legal pages are drafts: review them in the lawyer hour (plan Q-009).
