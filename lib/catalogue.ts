@@ -7,7 +7,7 @@ const LIVE = `
   where m.status = 'active' and o.country = $1
     and o.last_seen > now() - make_interval(hours => ${rules.offerMaxAgeHours})`;
 
-export type Sort = "relevance" | "price_asc" | "price_desc";
+export type Sort = "relevance" | "price_asc" | "price_desc" | "compared";
 
 export interface SearchParams {
   q?: string | null;
@@ -17,6 +17,8 @@ export interface SearchParams {
   freeDelivery?: boolean;
   sort?: Sort;
   page?: number;
+  /** Only products sold by at least this many shops. */
+  minMerchants?: number;
 }
 
 export interface ProductCard {
@@ -28,6 +30,8 @@ export interface ProductCard {
   min_total: number;
   offer_count: number;
   merchant_count: number;
+  /** True when every offer for the product states its delivery cost. */
+  delivery_known: boolean;
 }
 
 export interface Facet {
@@ -49,6 +53,7 @@ const ORDER: Record<Sort, string> = {
   relevance: "rank desc, a.merchant_count desc, a.min_total asc",
   price_asc: "a.min_total asc, p.id",
   price_desc: "a.min_total desc, p.id",
+  compared: "a.merchant_count desc, a.min_total asc, p.id",
 };
 
 export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<SearchResult> {
@@ -65,6 +70,7 @@ export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<S
     params.freeDelivery === true,
     rules.pageSize,
     (page - 1) * rules.pageSize,
+    Math.max(1, Math.floor(params.minMerchants ?? 1)),
   ];
 
   const base = `
@@ -73,14 +79,16 @@ export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<S
       select product_id,
         min(price_pence + coalesce(delivery_pence, 0))::int as min_total,
         count(*)::int as offer_count,
-        count(distinct merchant_id)::int as merchant_count
+        count(distinct merchant_id)::int as merchant_count,
+        bool_and(delivery_pence is not null) as delivery_known
       from live
       where ($6::boolean is not true or delivery_pence = 0)
         and ($5::int is null or merchant_id = $5::int)
       group by product_id
+      having count(distinct merchant_id) >= $9::int
     ),
     matched as (
-      select p.*, a.min_total, a.offer_count, a.merchant_count,
+      select p.*, a.min_total, a.offer_count, a.merchant_count, a.delivery_known,
         case when $2::text is null then 0
              else ts_rank(p.search, websearch_to_tsquery('english', $2::text)) end as rank
       from products p join agg a on a.product_id = p.id
@@ -92,15 +100,15 @@ export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<S
   const items = await db.query<ProductCard & { total: number }>(
     `${base}
      select p.id::int as id, p.title, p.brand, p.image_url, p.category, p.min_total, p.offer_count,
-            p.merchant_count, count(*) over ()::int as total
+            p.merchant_count, p.delivery_known, count(*) over ()::int as total
      from matched p join agg a on a.product_id = p.id
      order by ${ORDER[sort]}
      limit $7 offset $8`,
     args,
   );
 
-  const facetArgs = args.slice(0, 6);
-  const facetBase = base.replace(/\$7|\$8/g, "null");
+  const facetArgs = [...args.slice(0, 6), args[8]];
+  const facetBase = base.replace(/\$7|\$8/g, "null").replace(/\$9/g, "$7");
   const brands = await db.query<Facet>(
     `${facetBase}
      select brand_key as key, min(brand) as label, count(*)::int as count

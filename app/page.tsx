@@ -9,16 +9,16 @@ export default async function Home() {
   const [stats, categories, compared] = await Promise.all([
     catalogueStats(),
     listCategories(),
-    searchProducts({ sort: "price_asc" }),
+    searchProducts({ sort: "compared", minMerchants: 2 }),
   ]);
-  const mostCompared = [...compared.items].sort((a, b) => b.merchant_count - a.merchant_count).slice(0, 8);
+  const mostCompared = compared.items.slice(0, 8);
 
   return (
     <>
       <div className="eyebrow">Price comparison</div>
       <h1>Compare prices from UK shops</h1>
       <p className="lede">
-        Find the same product across {stats.merchants > 0 ? plural(stats.merchants, "UK shop") : "UK shops"} and see the full price including delivery. We
+        Find the same product across {stats.merchants > 0 ? plural(stats.merchants, "UK shop") : "UK shops"} and see each shop's price, with delivery wherever the shop states it. We
         do not sell anything ourselves: every offer links to the shop.
       </p>
 
@@ -43,7 +43,7 @@ export default async function Home() {
           <h2>Most compared</h2>
           <ProductGrid items={mostCompared} />
         </>
-      ) : (
+      ) : stats.merchants > 0 ? null : (
         <p className="muted">The catalogue is being loaded. Please check back soon.</p>
       )}
     </>

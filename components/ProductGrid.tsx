@@ -22,7 +22,7 @@ export function ProductGrid({ items }: { items: ProductCard[] }) {
           <div className="title">{p.title}</div>
           <div className="price">From {money(p.min_total)}</div>
           <div className="meta">
-            {plural(p.merchant_count, "shop")} · incl. delivery
+            {plural(p.merchant_count, "shop")} · {p.delivery_known ? "incl. delivery" : "plus delivery"}
           </div>
         </Link>
       ))}

@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!p) return { title: "Product not found" };
   return {
     title: `${p.title}: compare ${plural(new Set(p.offers.map((o) => o.merchant_id)).size, "shop")}`,
-    description: `Prices for ${p.title} from ${money(p.offers[0].total_pence)} including delivery.`,
+    description: `Prices for ${p.title} from ${money(p.offers[0].total_pence)}${p.offers[0].delivery_pence === null ? "" : " including delivery"}.`,
   };
 }
 
@@ -52,8 +52,10 @@ export default async function ProductPage({ params }: Props) {
           {p.brand && <div className="muted">{p.brand}</div>}
           <h1>{p.title}</h1>
           <p className="lede">
-            {plural(shops, "shop")} selling this product. Best total price {money(cheapest.total_pence)} including
-            delivery.
+            {plural(shops, "shop")} selling this product.{" "}
+            {cheapest.delivery_pence === null
+              ? `Best price ${money(cheapest.total_pence)}, plus delivery from the shop.`
+              : `Best total price ${money(cheapest.total_pence)} including delivery.`}
           </p>
           {p.gtin && <p className="muted small">Barcode (GTIN) {p.gtin.replace(/^0+(?=\d{13})/, "")}</p>}
         </div>

@@ -222,3 +222,20 @@ describe("awin google format and feed list", () => {
     expect(res.errorSample[0]).toMatch(/time limit/);
   });
 });
+
+describe("home page helpers", () => {
+  it("lists only products sold by two or more shops, most shops first, and flags unknown delivery", async () => {
+    const g1 = ean13("500000000101");
+    await ingestRows("test", "test", [
+      row({ merchantName: "Shop A", url: "https://a.example/1", sku: "1", gtin: g1, deliveryPence: null }),
+      row({ merchantName: "Shop B", url: "https://b.example/1", sku: "1", gtin: g1, deliveryPence: 0 }),
+      row({ merchantName: "Shop A", url: "https://a.example/2", sku: "2", title: "Single shop thing" }),
+    ]);
+    const res = await searchProducts({ sort: "compared", minMerchants: 2 });
+    expect(res.items.map((i) => i.merchant_count)).toEqual([2]);
+    expect(res.items[0].delivery_known).toBe(false);
+    expect(res.total).toBe(1);
+    const all = await searchProducts({});
+    expect(all.total).toBe(2);
+  });
+});
