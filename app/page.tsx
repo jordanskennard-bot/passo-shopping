@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { catalogueStats, listCategories, searchProducts } from "@/lib/catalogue";
+import { catalogueStats, listCategories, listMerchants, searchProducts } from "@/lib/catalogue";
 import { plural } from "@/lib/format";
 import { ProductGrid } from "@/components/ProductGrid";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [stats, categories, compared] = await Promise.all([
+  const [stats, categories, compared, merchants] = await Promise.all([
     catalogueStats(),
     listCategories(),
     searchProducts({ sort: "compared", minMerchants: 2 }),
+    listMerchants(),
   ]);
   const mostCompared = compared.items.slice(0, 8);
 
@@ -23,6 +24,23 @@ export default async function Home() {
       </p>
 
       <hr className="rule" />
+
+      {merchants.length > 0 && (
+        <>
+          <h2>Shops we compare</h2>
+          <ul className="cats">
+            {merchants.map((m) => (
+              <li key={m.id}>
+                <Link href={`/search?merchant=${m.id}`}>{m.name}</Link> <span className="muted">{m.domain}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="muted small">
+            <Link href="/merchants">All shops and offer counts</Link> · <Link href="/about">How the site works</Link>
+          </p>
+          <hr className="rule" />
+        </>
+      )}
 
       {categories.length > 0 && (
         <>

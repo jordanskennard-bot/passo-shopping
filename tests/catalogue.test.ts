@@ -239,3 +239,16 @@ describe("home page helpers", () => {
     expect(all.total).toBe(2);
   });
 });
+
+describe("product cards", () => {
+  it("name the shop with the lowest in-stock total", async () => {
+    const g = ean13("500000000010");
+    await ingestRows("test", "t", [
+      row({ gtin: g, pricePence: 3000 }),
+      row({ merchantName: "Shop B", url: "https://shop-b.example/r", sku: "B1", gtin: g, pricePence: 2500 }),
+      row({ merchantName: "Shop C", url: "https://shop-c.example/r", sku: "C1", gtin: g, pricePence: 2000, inStock: false }),
+    ]);
+    const res = await searchProducts({});
+    expect(res.items[0].cheapest_merchant).toBe("Shop B");
+  });
+});

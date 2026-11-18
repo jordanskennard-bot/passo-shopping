@@ -21,6 +21,7 @@ export function ProductGrid({ items }: { items: ProductCard[] }) {
           {p.brand && <div className="meta">{p.brand}</div>}
           <div className="title">{p.title}</div>
           <div className="price">From {money(p.min_total)}</div>
+          {p.cheapest_merchant && <div className="meta">Lowest at {p.cheapest_merchant}</div>}
           <div className="meta">
             {plural(p.merchant_count, "shop")} · {p.delivery_known ? "incl. delivery" : "plus delivery"}
           </div>

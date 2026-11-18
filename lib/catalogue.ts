@@ -32,6 +32,8 @@ export interface ProductCard {
   merchant_count: number;
   /** True when every offer for the product states its delivery cost. */
   delivery_known: boolean;
+  /** The shop with the lowest total, preferring shops with the product in stock. */
+  cheapest_merchant: string | null;
 }
 
 export interface Facet {
@@ -100,7 +102,14 @@ export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<S
   const items = await db.query<ProductCard & { total: number }>(
     `${base}
      select p.id::int as id, p.title, p.brand, p.image_url, p.category, p.min_total, p.offer_count,
-            p.merchant_count, p.delivery_known, count(*) over ()::int as total
+            p.merchant_count, p.delivery_known,
+            (select m.name from live l join merchants m on m.id = l.merchant_id
+              where l.product_id = p.id
+                and ($6::boolean is not true or l.delivery_pence = 0)
+                and ($5::int is null or l.merchant_id = $5::int)
+              order by l.in_stock desc, l.price_pence + coalesce(l.delivery_pence, 0), m.name
+              limit 1) as cheapest_merchant,
+            count(*) over ()::int as total
      from matched p join agg a on a.product_id = p.id
      order by ${ORDER[sort]}
      limit $7 offset $8`,
