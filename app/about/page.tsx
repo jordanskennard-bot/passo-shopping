@@ -1,3 +1,5 @@
+import { currentCountry } from "@/lib/request-country";
+import { localPath } from "@/lib/countries";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { company, rules, site } from "@/lib/config";
@@ -5,11 +7,12 @@ import { Prose } from "@/components/Page";
 
 export const metadata: Metadata = { title: "About us" };
 
-export default function About() {
+export default async function About() {
+  const c = await currentCountry();
   return (
     <Prose eyebrow="About" title={`About ${site.name}`}>
       <p>
-        {site.name} compares prices for the same product across UK shops, so you can see who sells it for the
+        {site.name} compares prices for the same product across {c.adjective} shops, so you can see who sells it for the
         least once delivery is added. We do not sell anything: every offer links to the shop that sells it.
       </p>
       <p>
@@ -29,8 +32,8 @@ export default function About() {
         there is no barcode. We never merge products on a similar name, so a comparison is always like for like.
       </p>
       <p>
-        Offers are ordered by total price, the item price plus UK delivery, with in-stock offers first. You can see
-        every shop we compare on the <Link href="/merchants">Shops</Link> page.
+        Offers are ordered by total price, the item price plus delivery to {c.inName}, with in-stock offers first. You can see
+        every shop we compare on the <Link href={localPath(c, "/merchants")}>Shops</Link> page.
       </p>
 
       <h2>What we do not do</h2>
@@ -43,7 +46,7 @@ export default function About() {
       <p>
         A shop may pay us a commission when you buy after following one of our links. You pay the same price, and
         commission never changes the order of offers. Shops cannot pay to rank higher. More on{" "}
-        <Link href="/affiliate-disclosure">how we are paid</Link> and <Link href="/how-we-rank">how we rank</Link>.
+        <Link href={localPath(c, "/affiliate-disclosure")}>how we are paid</Link> and <Link href={localPath(c, "/how-we-rank")}>how we rank</Link>.
       </p>
 
       <h2>Company details</h2>
@@ -58,7 +61,7 @@ export default function About() {
       </p>
       <p>
         Shops and affiliate managers who want to be listed, or questions and corrections:{" "}
-        <Link href="/contact">contact us</Link>.
+        <Link href={localPath(c, "/contact")}>contact us</Link>.
       </p>
     </Prose>
   );

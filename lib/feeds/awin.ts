@@ -1,6 +1,7 @@
 import { parse } from "csv-parse/sync";
 import { decode, parseCsv, type ColumnMap } from "./csv";
 import { ingestRows, type IngestResult } from "../ingest";
+import { COUNTRIES, enabledCountries } from "../countries";
 
 /**
  * Awin product feed adapter.
@@ -61,6 +62,8 @@ const EXTRA_CLASSIC_COLUMNS = ["ean", "product_GTIN", "upc", "delivery_cost", "m
 export type AwinFormat = "awin" | "google";
 
 export interface AwinFeed {
+  /** Country the feed is for (Awin's Primary Region). */
+  country: string;
   advertiserId: string;
   advertiserName: string;
   feedId: string;
@@ -69,8 +72,8 @@ export interface AwinFeed {
   url: string;
 }
 
-/** Reads the feed list and keeps feeds we can use: joined, UK, in English. */
-export function parseFeedList(csv: string, country = "GB"): AwinFeed[] {
+/** Reads the feed list and keeps feeds we can use: joined, in an enabled country, in that country's language. */
+export function parseFeedList(csv: string, countries: string[] = ["GB"]): AwinFeed[] {
   const rows = parse(csv, { columns: true, skip_empty_lines: true, bom: true, relax_column_count: true }) as Record<
     string,
     string
@@ -79,11 +82,12 @@ export function parseFeedList(csv: string, country = "GB"): AwinFeed[] {
     .filter(
       (r) =>
         (r["Membership Status"] ?? "").toLowerCase() === "active" &&
-        (r["Primary Region"] ?? "").toUpperCase() === country &&
-        (r["Language"] ?? "English").toLowerCase().startsWith("english") &&
+        countries.includes(regionOf(r)) &&
+        COUNTRIES[regionOf(r)].feedLanguages.some((l) => (r["Language"] ?? "English").toLowerCase().startsWith(l)) &&
         (r["URL"] ?? "").startsWith("https://"),
     )
     .map((r) => ({
+      country: regionOf(r),
       advertiserId: r["Advertiser ID"],
       advertiserName: r["Advertiser Name"],
       feedId: r["Feed ID"],
@@ -91,6 +95,13 @@ export function parseFeedList(csv: string, country = "GB"): AwinFeed[] {
       products: Number(r["No of products"] ?? 0) || 0,
       url: r["URL"],
     }));
+}
+
+/** Awin writes the UK as GB; anything unknown maps to "" and is skipped. */
+function regionOf(r: Record<string, string>): string {
+  const code = (r["Primary Region"] ?? "").trim().toUpperCase();
+  const c = code === "UK" ? "GB" : code;
+  return COUNTRIES[c] ? c : "";
 }
 
 /** Adds the barcode and delivery columns to a classic Awin download link. */
@@ -112,7 +123,10 @@ export async function listAwinFeeds(listUrl = process.env.AWIN_FEED_LIST_URL): P
   if (!listUrl) return [];
   const res = await fetch(listUrl);
   if (!res.ok) throw new Error(`Awin feed list download failed: HTTP ${res.status}`);
-  return parseFeedList(decode(Buffer.from(await res.arrayBuffer())));
+  return parseFeedList(
+    decode(Buffer.from(await res.arrayBuffer())),
+    enabledCountries().map((c) => c.code),
+  );
 }
 
 async function download(url: string): Promise<Response> {
@@ -124,6 +138,7 @@ export async function ingestAwinFeed(
   format: AwinFormat = "awin",
   source = "awin-feed",
   deadline?: number,
+  country = "GB",
 ): Promise<IngestResult> {
   let res: Response | null = null;
   if (format === "awin") {
@@ -141,7 +156,7 @@ export async function ingestAwinFeed(
   // Trust the header over the list's label.
   const google = /(^|,)"?advertiser_name"?(,|$)/.test(header) || (format === "google" && !header.includes("merchant_name"));
   const columns = google ? awinGoogleColumns : awinColumns;
-  return ingestRows("awin", source, parseCsv(text, columns), { deadline });
+  return ingestRows("awin", source, parseCsv(text, columns), { deadline, country });
 }
 
 export function awinFeedUrls(): string[] {

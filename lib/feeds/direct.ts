@@ -22,5 +22,8 @@ export async function ingestDirectFeed(feed: DirectFeed, source: string, deadlin
   if (feed.type === "shopify") return ingestShopifyStore(feed, source, deadline);
   const res = await fetch(feed.url, { headers: { "accept-encoding": "gzip" } });
   if (!res.ok) throw new Error(`Direct feed download failed: HTTP ${res.status}`);
-  return ingestRows("direct", source, parseGoogleFeed(Buffer.from(await res.arrayBuffer()), feed), { deadline });
+  return ingestRows("direct", source, parseGoogleFeed(Buffer.from(await res.arrayBuffer()), feed), {
+    deadline,
+    country: feed.country,
+  });
 }

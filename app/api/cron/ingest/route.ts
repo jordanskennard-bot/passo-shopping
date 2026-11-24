@@ -28,7 +28,9 @@ export async function GET(req: Request) {
   try {
     for (const f of await listAwinFeeds()) {
       const format: AwinFormat = f.format;
-      jobs.push({ source: `awin:${f.feedId}`, label: f.advertiserName, run: (d) => ingestAwinFeed(f.url, format, `awin:${f.feedId}`, d) });
+      const source = `awin:${f.feedId}`;
+      const label = f.country === "GB" ? f.advertiserName : `${f.advertiserName} (${f.country})`;
+      jobs.push({ source, label, run: (d) => ingestAwinFeed(f.url, format, source, d, f.country) });
     }
   } catch (err) {
     await sendAlert("Awin feed list failed", (err as Error).message);
@@ -40,11 +42,11 @@ export async function GET(req: Request) {
   }
   try {
     for (const f of webgainsFeeds()) {
-      const source = `webgains:${f.domain}`;
+      const source = `webgains:${f.country}:${f.domain}`;
       jobs.push({ source, label: `${f.name} (Webgains)`, run: (d) => ingestWebgainsFeed(f, source, d) });
     }
     for (const f of directFeeds()) {
-      const source = `direct:${f.domain ?? f.name}`;
+      const source = `direct:${f.country}:${f.domain ?? f.name}`;
       jobs.push({ source, label: `${f.name} (direct)`, run: (d) => ingestDirectFeed(f, source, d) });
     }
   } catch (err) {

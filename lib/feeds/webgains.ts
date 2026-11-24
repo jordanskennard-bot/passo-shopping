@@ -2,6 +2,7 @@ import { decode, mapRecord, parseCsv, type ColumnMap } from "./csv";
 import { delimiterOf, googleColumns, parseGoogleXml, withMerchant, type MerchantInfo } from "./google";
 import { ingestRows, type FeedRow, type IngestResult } from "../ingest";
 import { domainFromUrl } from "../normalise";
+import { COUNTRIES } from "../countries";
 
 /**
  * Webgains product feed adapter.
@@ -44,6 +45,8 @@ export interface WebgainsFeed extends MerchantInfo {
   type?: "google" | "shopify";
   /** Shopify direct feeds only: flat delivery cost in pence, when the shop has one. */
   deliveryPence?: number | null;
+  /** Country the feed's prices are for (ISO code). Defaults to GB. */
+  country?: string;
 }
 
 /** Webgains entries need a domain: the feed's links point at Webgains, not the shop. */
@@ -69,6 +72,7 @@ export function parseFeedConfig(raw: string | undefined): WebgainsFeed[] {
       url: f.url.trim(),
       type: f.type === "shopify" ? "shopify" : "google",
       deliveryPence: Number.isInteger(f.deliveryPence) && (f.deliveryPence as number) >= 0 ? f.deliveryPence : null,
+      country: typeof f.country === "string" && COUNTRIES[f.country.toUpperCase()] ? f.country.toUpperCase() : "GB",
     }));
 }
 
@@ -99,5 +103,8 @@ export async function* parseWebgainsFeed(buf: Buffer, m: MerchantInfo): AsyncGen
 export async function ingestWebgainsFeed(feed: WebgainsFeed, source: string, deadline?: number): Promise<IngestResult> {
   const res = await fetch(feed.url, { headers: { "accept-encoding": "gzip" } });
   if (!res.ok) throw new Error(`Webgains feed download failed: HTTP ${res.status}`);
-  return ingestRows("webgains", source, parseWebgainsFeed(Buffer.from(await res.arrayBuffer()), feed), { deadline });
+  return ingestRows("webgains", source, parseWebgainsFeed(Buffer.from(await res.arrayBuffer()), feed), {
+    deadline,
+    country: feed.country,
+  });
 }

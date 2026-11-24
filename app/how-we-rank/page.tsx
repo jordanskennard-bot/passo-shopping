@@ -1,10 +1,12 @@
+import { currentCountry } from "@/lib/request-country";
 import type { Metadata } from "next";
 import { rules, site } from "@/lib/config";
 import { Prose } from "@/components/Page";
 
 export const metadata: Metadata = { title: "How we rank" };
 
-export default function HowWeRank() {
+export default async function HowWeRank() {
+  const c = await currentCountry();
   return (
     <Prose eyebrow="Transparency" title="How we rank results">
       <h2>Search results</h2>
@@ -15,12 +17,12 @@ export default function HowWeRank() {
       </p>
       <h2>Offers on a product page</h2>
       <p>
-        Offers are ordered by total price: the item price plus standard delivery to the UK. Shops with the product in
+        Offers are ordered by total price: the item price plus standard delivery to {c.inName}. Shops with the product in
         stock come first. Where a shop does not state delivery, we show the item price and say so.
       </p>
       <h2>What we include</h2>
       <p>
-        We list shops that deliver to the UK and supply a product feed. Prices and stock are refreshed daily. An
+        We list shops that deliver to {c.inName} and supply a product feed. Prices and stock are refreshed daily. An
         offer that has not appeared in a shop&apos;s feed for {rules.offerMaxAgeHours} hours is hidden.
       </p>
       <h2>Payment</h2>

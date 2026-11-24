@@ -1,3 +1,4 @@
+import type { Country } from "@/lib/countries";
 import Link from "next/link";
 import { searchProducts, type SearchParams, type Sort } from "@/lib/catalogue";
 import { plural } from "@/lib/format";
@@ -31,8 +32,8 @@ function href(base: string, params: SearchParams, change: Partial<SearchParams>)
   return s ? `${base}?${s}` : base;
 }
 
-export async function Results({ base, params }: { base: string; params: SearchParams }) {
-  const res = await searchProducts(params);
+export async function Results({ base, params, country }: { base: string; params: SearchParams; country: Country }) {
+  const res = await searchProducts({ ...params, country: country.code });
   const sort = params.sort ?? (params.q ? "relevance" : "price_asc");
   const sorts: [Sort, string][] = [
     ...(params.q ? ([["relevance", "Best match"]] as [Sort, string][]) : []),
@@ -114,7 +115,7 @@ export async function Results({ base, params }: { base: string; params: SearchPa
         {res.total === 0 ? (
           <p className="muted">No products match. Try a shorter search or remove a filter.</p>
         ) : (
-          <ProductGrid items={res.items} />
+          <ProductGrid items={res.items} country={country} />
         )}
         {res.pages > 1 && (
           <div className="pager">

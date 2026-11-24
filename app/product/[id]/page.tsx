@@ -1,3 +1,5 @@
+import { currentCountry } from "@/lib/request-country";
+import { localPath } from "@/lib/countries";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,17 +17,19 @@ function idFrom(raw: string): number | null {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const id = idFrom((await params).id);
-  const p = id ? await getProduct(id) : null;
+  const c = await currentCountry();
+  const p = id ? await getProduct(id, c.code) : null;
   if (!p) return { title: "Product not found" };
   return {
     title: `${p.title}: compare ${plural(new Set(p.offers.map((o) => o.merchant_id)).size, "shop")}`,
-    description: `Prices for ${p.title} from ${money(p.offers[0].total_pence)}${p.offers[0].delivery_pence === null ? "" : " including delivery"}.`,
+    description: `Prices for ${p.title} from ${money(p.offers[0].total_pence, c)}${p.offers[0].delivery_pence === null ? "" : " including delivery"}.`,
   };
 }
 
 export default async function ProductPage({ params }: Props) {
   const id = idFrom((await params).id);
-  const p = id ? await getProduct(id) : null;
+  const c = await currentCountry();
+  const p = id ? await getProduct(id, c.code) : null;
   if (!p) notFound();
   const shops = new Set(p.offers.map((o) => o.merchant_id)).size;
   const cheapest = p.offers.find((o) => o.in_stock) ?? p.offers[0];
@@ -34,7 +38,7 @@ export default async function ProductPage({ params }: Props) {
     <>
       {p.category && p.category_slug && (
         <div className="eyebrow">
-          <Link href={`/category/${p.category_slug}`}>{p.category}</Link>
+          <Link href={localPath(c, `/category/${p.category_slug}`)}>{p.category}</Link>
         </div>
       )}
       <div className="product">
@@ -54,8 +58,8 @@ export default async function ProductPage({ params }: Props) {
           <p className="lede">
             {plural(shops, "shop")} selling this product.{" "}
             {cheapest.delivery_pence === null
-              ? `Best price ${money(cheapest.total_pence)}, plus delivery from the shop.`
-              : `Best total price ${money(cheapest.total_pence)} including delivery.`}
+              ? `Best price ${money(cheapest.total_pence, c)}, plus delivery from the shop.`
+              : `Best total price ${money(cheapest.total_pence, c)} including delivery.`}
           </p>
           {p.gtin && <p className="muted small">Barcode (GTIN) {p.gtin.replace(/^0+(?=\d{13})/, "")}</p>}
         </div>
@@ -85,10 +89,10 @@ export default async function ProductPage({ params }: Props) {
                   {!o.in_stock && <span className="out"> · Out of stock</span>}
                 </div>
               </td>
-              <td className="num hide-sm">{money(o.price_pence)}</td>
-              <td className="num hide-sm">{delivery(o.delivery_pence)}</td>
+              <td className="num hide-sm">{money(o.price_pence, c)}</td>
+              <td className="num hide-sm">{delivery(o.delivery_pence, c)}</td>
               <td className="num">
-                <span className="total">{money(o.total_pence)}</span>
+                <span className="total">{money(o.total_pence, c)}</span>
                 {i === 0 && o.in_stock && <span className="best">Lowest total</span>}
               </td>
               <td style={{ textAlign: "right" }}>
@@ -103,7 +107,7 @@ export default async function ProductPage({ params }: Props) {
       <p className="muted small" style={{ marginTop: 16 }}>
         Prices and delivery come from each shop&apos;s product feed and are checked daily. The shop&apos;s own page has the
         final price. We may be paid when you visit a shop from this page; this never changes the order, which is by
-        total price. <Link href="/how-we-rank">How we rank</Link>.
+        total price. <Link href={localPath(c, "/how-we-rank")}>How we rank</Link>.
       </p>
     </>
   );

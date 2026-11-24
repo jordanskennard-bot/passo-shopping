@@ -1,5 +1,6 @@
 import { getDb, type Db } from "./db";
-import { company, rules, site } from "./config";
+import { company, rules } from "./config";
+import { DEFAULT_COUNTRY, type Country } from "./countries";
 import { catalogueStats, searchProducts } from "./catalogue";
 
 export type Status = "pass" | "warn" | "fail";
@@ -13,6 +14,7 @@ export interface Check {
 
 export interface ComplianceReport {
   runAt: string;
+  country: string;
   passed: boolean;
   merchantCount: number;
   checks: Check[];
@@ -24,18 +26,19 @@ export interface ComplianceReport {
  * are listed too, so the report mirrors the requirement list in full.
  */
 export async function runCompliance(
-  opts: { linkCheck?: boolean; save?: boolean; db?: Db } = {},
+  opts: { linkCheck?: boolean; save?: boolean; db?: Db; country?: Country } = {},
 ): Promise<ComplianceReport> {
   const db = opts.db ?? (await getDb());
-  const stats = await catalogueStats(db);
+  const c = opts.country ?? DEFAULT_COUNTRY;
+  const stats = await catalogueStats(c.code, db);
   const checks: Check[] = [];
 
   checks.push({
     id: "merchants",
-    requirement: `Products from at least ${rules.merchantsRequired} distinct merchant domains delivering to the UK`,
+    requirement: `Products from at least ${rules.merchantsRequired} distinct merchant domains delivering to ${c.inName}`,
     status:
       stats.merchants >= rules.merchantsTarget ? "pass" : stats.merchants >= rules.merchantsRequired ? "warn" : "fail",
-    detail: `${stats.merchants} merchants with live UK offers (target ${rules.merchantsTarget} for headroom).`,
+    detail: `${stats.merchants} merchants with live ${c.adjective} offers (target ${rules.merchantsTarget} for headroom).`,
   });
 
   checks.push({
@@ -49,7 +52,7 @@ export async function runCompliance(
     `select count(*)::int as total,
             count(*) filter (where last_seen > now() - interval '26 hours')::int as fresh
      from offers where country = $1 and last_seen > now() - make_interval(hours => ${rules.offerMaxAgeHours})`,
-    [site.country],
+    [c.code],
   );
   const freshShare = fresh.total ? fresh.fresh / fresh.total : 0;
   checks.push({
@@ -62,13 +65,14 @@ export async function runCompliance(
   // Search works: take a word from a real product title and confirm it finds results.
   const [sample] = await db.query<{ title: string }>(
     `select p.title from products p join offers o on o.product_id = p.id
-     where o.last_seen > now() - interval '48 hours' order by p.id limit 1`,
+     where o.country = $1 and o.last_seen > now() - interval '48 hours' order by p.id limit 1`,
+    [c.code],
   );
   let searchStatus: Status = "fail";
   let searchDetail = "No live products to search yet.";
   if (sample) {
     const term = sample.title.split(/\s+/).find((w) => w.length > 3) ?? sample.title;
-    const res = await searchProducts({ q: term }, db);
+    const res = await searchProducts({ q: term, country: c.code }, db);
     searchStatus = res.total > 0 ? "pass" : "fail";
     searchDetail = `Searching "${term}" returned ${res.total} products, sortable by price, filterable by brand, merchant and free delivery.`;
   }
@@ -81,7 +85,8 @@ export async function runCompliance(
 
   if (opts.linkCheck) {
     const sampleOffers = await db.query<{ url: string }>(
-      `select url from offers where last_seen > now() - interval '48 hours' order by random() limit 20`,
+      `select url from offers where country = $1 and last_seen > now() - interval '48 hours' order by random() limit 20`,
+      [c.code],
     );
     let ok = 0;
     for (const o of sampleOffers) {
@@ -115,6 +120,7 @@ export async function runCompliance(
 
   const report: ComplianceReport = {
     runAt: new Date().toISOString(),
+    country: c.code,
     passed: checks.every((c) => c.status !== "fail"),
     merchantCount: stats.merchants,
     checks,
@@ -124,7 +130,7 @@ export async function runCompliance(
     await db.query("insert into compliance_runs (passed, merchant_count, checks) values ($1, $2, $3)", [
       report.passed,
       report.merchantCount,
-      JSON.stringify(report.checks),
+      JSON.stringify(report.checks.map((x) => ({ ...x, country: c.code }))),
     ]);
   }
   return report;

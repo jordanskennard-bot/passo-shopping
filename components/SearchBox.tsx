@@ -1,6 +1,14 @@
-export function SearchBox({ defaultValue = "", autoFocus = false }: { defaultValue?: string; autoFocus?: boolean }) {
+export function SearchBox({
+  defaultValue = "",
+  autoFocus = false,
+  action = "/search",
+}: {
+  defaultValue?: string;
+  autoFocus?: boolean;
+  action?: string;
+}) {
   return (
-    <form className="search" action="/search" method="get" role="search">
+    <form className="search" action={action} method="get" role="search">
       <label htmlFor="q" className="visually-hidden" style={{ position: "absolute", left: "-9999px" }}>
         Search products
       </label>

@@ -34,6 +34,7 @@ export interface ShopifyStore {
   domain?: string | null;
   url: string;
   deliveryPence?: number | null;
+  country?: string;
 }
 
 export function shopifyRows(products: ShopifyProduct[], store: ShopifyStore): FeedRow[] {
@@ -75,5 +76,5 @@ async function* fetchAll(store: ShopifyStore): AsyncGenerator<FeedRow> {
 }
 
 export async function ingestShopifyStore(store: ShopifyStore, source: string, deadline?: number): Promise<IngestResult> {
-  return ingestRows("direct", source, fetchAll(store), { deadline });
+  return ingestRows("direct", source, fetchAll(store), { deadline, country: store.country });
 }

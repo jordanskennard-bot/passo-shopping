@@ -1,4 +1,5 @@
 import { getDb, type Db } from "./db";
+import { countryByCode } from "./countries";
 import { domainFromUrl, isHttpUrl, leafCategory, matchKey, normaliseGtin, slugify } from "./normalise";
 
 /** One offer from any feed, after the network adapter has mapped its columns. */
@@ -44,7 +45,8 @@ export async function ingestRows(
   opts: { country?: string; db?: Db; deadline?: number } = {},
 ): Promise<IngestResult> {
   const db = opts.db ?? (await getDb());
-  const country = opts.country ?? "GB";
+  const country = countryByCode(opts.country).code;
+  const currency = countryByCode(country).currency;
   const [run] = await db.query<IdRow>(
     "insert into feed_runs (network, source) values ($1, $2) returning id",
     [network, source],
@@ -68,18 +70,18 @@ export async function ingestRows(
       const domain = (row.merchantDomain ?? domainFromUrl(row.url))!;
       let merchantId = merchantIds.get(domain);
       if (!merchantId) {
-        merchantId = await upsertMerchant(db, network, domain, row);
+        merchantId = await upsertMerchant(db, network, domain, row, country);
         merchantIds.set(domain, merchantId);
       }
       const productId = await findOrCreateProduct(db, merchantId, row, country);
       await db.query(
         `insert into offers (merchant_id, product_id, merchant_sku, title, price_pence, delivery_pence,
-           in_stock, url, click_url, country, last_seen)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+           in_stock, url, click_url, country, currency, last_seen)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
          on conflict (merchant_id, merchant_sku, country) do update set
            product_id = excluded.product_id, title = excluded.title, price_pence = excluded.price_pence,
            delivery_pence = excluded.delivery_pence, in_stock = excluded.in_stock, url = excluded.url,
-           click_url = excluded.click_url, last_seen = now()`,
+           click_url = excluded.click_url, currency = excluded.currency, last_seen = now()`,
         [
           merchantId,
           productId,
@@ -91,6 +93,7 @@ export async function ingestRows(
           row.url,
           row.clickUrl && isHttpUrl(row.clickUrl) ? row.clickUrl : row.url,
           country,
+          currency,
         ],
       );
       rowsOk++;
@@ -119,15 +122,18 @@ function validate(row: FeedRow): string | null {
   return null;
 }
 
-async function upsertMerchant(db: Db, network: string, domain: string, row: FeedRow): Promise<number> {
+/** A shop seen in a country's feed delivers there; the country is added to its list. */
+async function upsertMerchant(db: Db, network: string, domain: string, row: FeedRow, country: string): Promise<number> {
   const [m] = await db.query<IdRow>(
-    `insert into merchants (domain, name, network, network_merchant_id)
-     values ($1, $2, $3, $4)
+    `insert into merchants (domain, name, network, network_merchant_id, delivers_to)
+     values ($1, $2, $3, $4, array[$5]::text[])
      on conflict (domain) do update set name = excluded.name,
        network_merchant_id = coalesce(excluded.network_merchant_id, merchants.network_merchant_id),
+       delivers_to = case when $5 = any(merchants.delivers_to) then merchants.delivers_to
+                          else merchants.delivers_to || array[$5]::text[] end,
        updated_at = now()
      returning id`,
-    [domain, row.merchantName.trim(), network, row.networkMerchantId ?? null],
+    [domain, row.merchantName.trim(), network, row.networkMerchantId ?? null, country],
   );
   return Number(m.id);
 }

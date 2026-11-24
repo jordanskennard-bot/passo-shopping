@@ -19,6 +19,8 @@ export interface SearchParams {
   page?: number;
   /** Only products sold by at least this many shops. */
   minMerchants?: number;
+  /** Country section (ISO code). Defaults to the UK. */
+  country?: string;
 }
 
 export interface ProductCard {
@@ -64,7 +66,7 @@ export async function searchProducts(params: SearchParams, dbIn?: Db): Promise<S
   const sort: Sort = params.sort && ORDER[params.sort] ? params.sort : q ? "relevance" : "price_asc";
   const page = Math.max(1, Math.floor(params.page ?? 1));
   const args = [
-    site.country,
+    params.country ?? site.country,
     q,
     params.category ?? null,
     params.brand ?? null,
@@ -169,7 +171,7 @@ export interface ProductDetail {
   offers: Offer[];
 }
 
-export async function getProduct(id: number, dbIn?: Db): Promise<ProductDetail | null> {
+export async function getProduct(id: number, country: string = site.country, dbIn?: Db): Promise<ProductDetail | null> {
   const db = dbIn ?? (await getDb());
   const [p] = await db.query<Omit<ProductDetail, "offers">>(
     "select id::int as id, title, brand, gtin, category, category_slug, image_url from products where id = $1",
@@ -184,7 +186,7 @@ export async function getProduct(id: number, dbIn?: Db): Promise<ProductDetail |
      from live l join merchants m on m.id = l.merchant_id
      where l.product_id = $2
      order by l.in_stock desc, total_pence asc, m.name`,
-    [site.country, id],
+    [country, id],
   );
   if (offers.length === 0) return null;
   return { ...p, offers };
@@ -196,7 +198,7 @@ export interface Category {
   products: number;
 }
 
-export async function listCategories(dbIn?: Db): Promise<Category[]> {
+export async function listCategories(country: string = site.country, dbIn?: Db): Promise<Category[]> {
   const db = dbIn ?? (await getDb());
   return db.query<Category>(
     `with live as (${LIVE})
@@ -204,7 +206,7 @@ export async function listCategories(dbIn?: Db): Promise<Category[]> {
      from products p join live l on l.product_id = p.id
      where p.category_slug is not null
      group by p.category_slug order by products desc, name`,
-    [site.country],
+    [country],
   );
 }
 
@@ -215,7 +217,7 @@ export interface MerchantRow {
   offers: number;
 }
 
-export async function listMerchants(dbIn?: Db): Promise<MerchantRow[]> {
+export async function listMerchants(country: string = site.country, dbIn?: Db): Promise<MerchantRow[]> {
   const db = dbIn ?? (await getDb());
   return db.query<MerchantRow>(
     `with live as (${LIVE})
@@ -223,11 +225,11 @@ export async function listMerchants(dbIn?: Db): Promise<MerchantRow[]> {
      from merchants m join live l on l.merchant_id = m.id
      where $1 = any(m.delivers_to)
      group by m.id, m.name, m.domain order by m.name`,
-    [site.country],
+    [country],
   );
 }
 
-export async function catalogueStats(dbIn?: Db) {
+export async function catalogueStats(country: string = site.country, dbIn?: Db) {
   const db = dbIn ?? (await getDb());
   const [s] = await db.query<{ merchants: number; products: number; offers: number; comparable: number }>(
     `with live as (${LIVE}),
@@ -238,7 +240,7 @@ export async function catalogueStats(dbIn?: Db) {
        (select count(*) from per)::int as products,
        (select count(*) from live)::int as offers,
        (select count(*) from per where n >= 2)::int as comparable`,
-    [site.country],
+    [country],
   );
   return s;
 }

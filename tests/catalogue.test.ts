@@ -342,3 +342,67 @@ describe("shopify direct stores", () => {
     expect(r.rowsOk).toBe(3);
   });
 });
+
+describe("countries", () => {
+  it("parses COUNTRIES, keeps the UK first and maps paths", async () => {
+    const { enabledCountries, countryForPath, localPath, COUNTRIES } = await import("@/lib/countries");
+    expect(enabledCountries(undefined).map((c) => c.code)).toEqual(["GB"]);
+    expect(enabledCountries("ie, xx").map((c) => c.code)).toEqual(["GB", "IE"]);
+    expect(countryForPath("/ie/merchants", "GB,IE")?.code).toBe("IE");
+    expect(countryForPath("/ie", "GB,IE")?.code).toBe("IE");
+    expect(countryForPath("/ie/merchants", "GB")).toBeNull();
+    expect(countryForPath("/iexample", "GB,IE")).toBeNull();
+    expect(localPath(COUNTRIES.IE, "/")).toBe("/ie");
+    expect(localPath(COUNTRIES.IE, "/search?q=x")).toBe("/ie/search?q=x");
+    expect(localPath(COUNTRIES.GB, "/search")).toBe("/search");
+  });
+
+  it("keeps each country's offers apart and records where a shop delivers", async () => {
+    const g = ean13("500000000058");
+    await ingestRows("awin", "uk", [row({ gtin: g, pricePence: 2000 })], { country: "GB" });
+    await ingestRows("awin", "ie", [row({ gtin: g, pricePence: 2400, sku: "A1-IE" })], { country: "IE" });
+    await ingestRows("awin", "ie", [row({ merchantName: "Irish Only", url: "https://irish.example/p", sku: "I1", gtin: g, pricePence: 2300 })], { country: "IE" });
+
+    const merchants = await db.query<{ domain: string; delivers_to: string[] }>(
+      "select domain, delivers_to from merchants order by domain",
+    );
+    expect(merchants).toEqual([
+      { domain: "irish.example", delivers_to: ["IE"] },
+      { domain: "shop-a.example", delivers_to: ["GB", "IE"] },
+    ]);
+    const cur = await db.query<{ country: string; currency: string }>("select distinct country, currency from offers order by country");
+    expect(cur).toEqual([{ country: "GB", currency: "GBP" }, { country: "IE", currency: "EUR" }]);
+
+    const uk = await searchProducts({});
+    expect(uk.items[0]).toMatchObject({ merchant_count: 1, min_total: 2000 });
+    const ie = await searchProducts({ country: "IE" });
+    expect(ie.items[0]).toMatchObject({ merchant_count: 2, min_total: 2300 });
+    const p = await getProduct(ie.items[0].id, "IE");
+    expect(p?.offers.map((o) => o.price_pence)).toEqual([2300, 2400]);
+
+    const { COUNTRIES } = await import("@/lib/countries");
+    const report = await runCompliance({ country: COUNTRIES.IE });
+    expect(report.country).toBe("IE");
+    expect(report.checks[0].detail).toContain("2 merchants with live Irish offers");
+    expect(report.checks[0].requirement).toContain("delivering to Ireland");
+  });
+
+  it("formats money in the country's currency", async () => {
+    const { money } = await import("@/lib/format");
+    const { COUNTRIES } = await import("@/lib/countries");
+    expect(money(1999)).toBe("£19.99");
+    expect(money(1999, COUNTRIES.IE)).toBe("€19.99");
+  });
+
+  it("reads Irish feeds from the Awin feed list only when Ireland is enabled", () => {
+    const list = [
+      `"Advertiser ID","Advertiser Name","Primary Region","Membership Status","Feed ID","Feed Name","Language","Vertical","Last Imported","Last Checked","No of products","URL","Datafeed Format"`,
+      `"1","UK Shop","GB","active","10","F","English","","","","5","https://feeds.example/1",""`,
+      `"2","Irish Shop","IE","active","20","F","English","","","","5","https://feeds.example/2",""`,
+      `"3","German Shop","DE","active","30","F","German","","","","5","https://feeds.example/3",""`,
+    ].join("\n");
+    expect(parseFeedList(list).map((f) => f.advertiserName)).toEqual(["UK Shop"]);
+    const both = parseFeedList(list, ["GB", "IE"]);
+    expect(both.map((f) => [f.advertiserName, f.country])).toEqual([["UK Shop", "GB"], ["Irish Shop", "IE"]]);
+  });
+});

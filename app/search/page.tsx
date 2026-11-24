@@ -1,3 +1,5 @@
+import { currentCountry } from "@/lib/request-country";
+import { localPath } from "@/lib/countries";
 import type { Metadata } from "next";
 import { Results, readParams } from "@/components/Results";
 
@@ -11,11 +13,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function SearchPage({ searchParams }: Props) {
+  const c = await currentCountry();
   const params = readParams(await searchParams);
   return (
     <>
       <h1>{params.q ? `Results for “${params.q}”` : "All products"}</h1>
-      <Results base="/search" params={params} />
+      <Results base={localPath(c, "/search")} params={params} country={c} />
     </>
   );
 }
