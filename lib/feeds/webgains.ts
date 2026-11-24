@@ -40,6 +40,10 @@ const googleWithTracking: ColumnMap = { ...googleColumns, clickUrl: ["deeplink",
 
 export interface WebgainsFeed extends MerchantInfo {
   url: string;
+  /** Direct feeds only: "google" (default) or "shopify". */
+  type?: "google" | "shopify";
+  /** Shopify direct feeds only: flat delivery cost in pence, when the shop has one. */
+  deliveryPence?: number | null;
 }
 
 /** Webgains entries need a domain: the feed's links point at Webgains, not the shop. */
@@ -59,7 +63,13 @@ export function parseFeedConfig(raw: string | undefined): WebgainsFeed[] {
   if (!Array.isArray(list)) return [];
   return list
     .filter((f): f is WebgainsFeed => !!f && typeof f.name === "string" && typeof f.url === "string" && /^https:\/\//.test(f.url))
-    .map((f) => ({ name: f.name.trim(), domain: f.domain ? String(f.domain).trim().toLowerCase() : null, url: f.url.trim() }));
+    .map((f) => ({
+      name: f.name.trim(),
+      domain: f.domain ? String(f.domain).trim().toLowerCase() : null,
+      url: f.url.trim(),
+      type: f.type === "shopify" ? "shopify" : "google",
+      deliveryPence: Number.isInteger(f.deliveryPence) && (f.deliveryPence as number) >= 0 ? f.deliveryPence : null,
+    }));
 }
 
 /**

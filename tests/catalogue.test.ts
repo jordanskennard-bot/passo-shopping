@@ -313,3 +313,32 @@ describe("webgains and direct feeds", () => {
     expect(() => directFeeds("{not json")).toThrow();
   });
 });
+
+describe("shopify direct stores", () => {
+  it("turns products.json variants into offers with variant links", async () => {
+    const { shopifyRows } = await import("@/lib/feeds/shopify");
+    const rows = shopifyRows(
+      [
+        {
+          id: 1, title: "Party Game", handle: "party-game", vendor: "Foul Play", product_type: "Games",
+          images: [{ src: "https://cdn.example/g.jpg" }],
+          variants: [{ id: 11, title: "Default Title", price: "10.00", sku: "FP1", barcode: ean13("500000000041"), available: true }],
+        },
+        {
+          id: 2, title: "Tee", handle: "tee", vendor: "Foul Play", product_type: null, images: [],
+          variants: [
+            { id: 21, title: "S", price: "15.00", sku: "", available: true },
+            { id: 22, title: "M", price: "15.00", sku: null, available: false },
+          ],
+        },
+      ],
+      { name: "Foul Play", domain: "shop.foulplay.example", url: "https://shop.foulplay.example/", deliveryPence: 399 },
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ title: "Party Game", url: "https://shop.foulplay.example/products/party-game", pricePence: 1000, deliveryPence: 399 });
+    expect(rows[1]).toMatchObject({ title: "Tee - S", sku: "21", url: "https://shop.foulplay.example/products/tee?variant=21" });
+    expect(rows[2].inStock).toBe(false);
+    const r = await ingestRows("direct", "t", rows);
+    expect(r.rowsOk).toBe(3);
+  });
+});
