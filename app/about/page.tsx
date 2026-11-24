@@ -48,6 +48,13 @@ export default async function About() {
         commission never changes the order of offers. Shops cannot pay to rank higher. More on{" "}
         <Link href={localPath(c, "/affiliate-disclosure")}>how we are paid</Link> and <Link href={localPath(c, "/how-we-rank")}>how we rank</Link>.
       </p>
+      <p>
+        Some shops reach us through affiliate networks such as Awin, impact.com and Sovrn, for example{" "}
+        <a href="https://sovrn.co/1etcby2" rel="sponsored nofollow">
+          John Lewis
+        </a>
+        .
+      </p>
 
       <h2>Company details</h2>
       <p>
