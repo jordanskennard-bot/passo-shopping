@@ -252,3 +252,64 @@ describe("product cards", () => {
     expect(res.items[0].cheapest_merchant).toBe("Shop B");
   });
 });
+
+describe("webgains and direct feeds", () => {
+  const collect = async (gen: AsyncGenerator<FeedRow>) => {
+    const out: FeedRow[] = [];
+    for await (const r of gen) out.push(r);
+    return out;
+  };
+
+  it("reads a Google RSS feed with nested shipping and tags the merchant", async () => {
+    const { parseGoogleFeed } = await import("@/lib/feeds/google");
+    const xml = `<?xml version="1.0"?><rss xmlns:g="http://base.google.com/ns/1.0" version="2.0"><channel>
+      <item><g:id>S1</g:id><g:title>Kestrel Razor</g:title><g:link>https://www.kestrel.example/razor</g:link>
+      <g:price>30.00 GBP</g:price><g:sale_price>25.00 GBP</g:sale_price><g:availability>in stock</g:availability>
+      <g:gtin>${ean13("500000000027")}</g:gtin><g:brand>Kestrel</g:brand>
+      <g:shipping><g:country>GB</g:country><g:price>3.95 GBP</g:price></g:shipping></item>
+      <item><g:id>S2</g:id><g:title>Blades</g:title><g:link>https://www.kestrel.example/blades</g:link>
+      <g:price>5.00 GBP</g:price><g:availability>out of stock</g:availability></item>
+    </channel></rss>`;
+    const rows = await collect(parseGoogleFeed(Buffer.from(xml), { name: "Kestrel", domain: null }));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ merchantName: "Kestrel", sku: "S1", pricePence: 2500, deliveryPence: 395, inStock: true });
+    expect(rows[1].inStock).toBe(false);
+    const r = await ingestRows("direct", "t", rows);
+    expect(r.rowsOk).toBe(2);
+  });
+
+  it("reads a Google TSV feed", async () => {
+    const { parseGoogleFeed } = await import("@/lib/feeds/google");
+    const tsv = "id\ttitle\tlink\tprice\tavailability\nT1\tSoap\thttps://soap.example/p\t4.50 GBP\tin stock\n";
+    const rows = await collect(parseGoogleFeed(Buffer.from(tsv), { name: "Soap Co", domain: "soap.example" }));
+    expect(rows[0]).toMatchObject({ title: "Soap", pricePence: 450, merchantDomain: "soap.example" });
+  });
+
+  it("reads a classic Webgains CSV, using the configured domain behind tracked links", async () => {
+    const { parseWebgainsFeed } = await import("@/lib/feeds/webgains");
+    const csv =
+      "program_name,program_id,product_id,product_name,deeplink,price,delivery_cost,image_url,category_name,ean,brand\n" +
+      `Lamp Shop,123,L1,Desk Lamp,https://track.webgains.com/click.html?x=1,19.99,2.99,https://img.example/l.jpg,Lighting,${ean13("500000000034")},Lumo\n`;
+    const rows = await collect(parseWebgainsFeed(Buffer.from(csv), { name: "Lamp Shop", domain: "lampshop.example" }));
+    expect(rows[0]).toMatchObject({ merchantDomain: "lampshop.example", pricePence: 1999, deliveryPence: 299, sku: "L1" });
+    expect(rows[0].clickUrl).toContain("webgains");
+    const r = await ingestRows("webgains", "t", rows);
+    expect(r.rowsOk).toBe(1);
+    const m = await db.query<{ domain: string }>("select domain from merchants");
+    expect(m.map((x) => x.domain)).toEqual(["lampshop.example"]);
+  });
+
+  it("parses feed config and drops Webgains entries without a domain", async () => {
+    const { webgainsFeeds } = await import("@/lib/feeds/webgains");
+    const { directFeeds } = await import("@/lib/feeds/direct");
+    const raw = JSON.stringify([
+      { name: "A", domain: "a.example", url: "https://feeds.example/a" },
+      { name: "B", url: "https://feeds.example/b" },
+      { name: "C", url: "http://insecure.example/c" },
+    ]);
+    expect(webgainsFeeds(raw).map((f) => f.name)).toEqual(["A"]);
+    expect(directFeeds(raw).map((f) => f.name)).toEqual(["A", "B"]);
+    expect(directFeeds("")).toEqual([]);
+    expect(() => directFeeds("{not json")).toThrow();
+  });
+});

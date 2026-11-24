@@ -23,6 +23,13 @@ export default async function Home() {
         do not sell anything ourselves: every offer links to the shop.
       </p>
 
+      {stats.products > 0 && (
+        <p className="muted small">
+          {stats.products.toLocaleString("en-GB")} products from {plural(stats.merchants, "UK shop")}, with prices and
+          stock refreshed every day. Run a shop? <Link href="/for-shops">Get listed</Link>.
+        </p>
+      )}
+
       <hr className="rule" />
 
       {merchants.length > 0 && (

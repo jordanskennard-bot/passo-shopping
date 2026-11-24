@@ -46,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <nav aria-label="Footer">
               <Link href="/about">About</Link>
+              <Link href="/for-shops">For shops</Link>
               <Link href="/contact">Contact</Link>
               <Link href="/how-we-rank">How we rank</Link>
               <Link href="/affiliate-disclosure">How we are paid</Link>

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { authorised } from "@/lib/cron";
 import { awinFeedUrls, ingestAwinFeed, listAwinFeeds, type AwinFormat } from "@/lib/feeds/awin";
+import { ingestWebgainsFeed, webgainsFeeds } from "@/lib/feeds/webgains";
+import { directFeeds, ingestDirectFeed } from "@/lib/feeds/direct";
+import type { IngestResult } from "@/lib/ingest";
 import { sendAlert } from "@/lib/alert";
 import { getDb } from "@/lib/db";
 
@@ -13,8 +16,7 @@ const BUDGET_MS = 200_000;
 interface Job {
   source: string;
   label: string;
-  url: string;
-  format: AwinFormat;
+  run: (deadline: number) => Promise<IngestResult>;
 }
 
 export async function GET(req: Request) {
@@ -25,14 +27,29 @@ export async function GET(req: Request) {
 
   try {
     for (const f of await listAwinFeeds()) {
-      jobs.push({ source: `awin:${f.feedId}`, label: f.advertiserName, url: f.url, format: f.format });
+      const format: AwinFormat = f.format;
+      jobs.push({ source: `awin:${f.feedId}`, label: f.advertiserName, run: (d) => ingestAwinFeed(f.url, format, `awin:${f.feedId}`, d) });
     }
   } catch (err) {
     await sendAlert("Awin feed list failed", (err as Error).message);
     results.push({ feed: "feed list", error: (err as Error).message });
   }
   for (const [i, url] of awinFeedUrls().entries()) {
-    jobs.push({ source: `awin-manual:${i + 1}`, label: `Manual feed ${i + 1}`, url, format: "awin" });
+    const source = `awin-manual:${i + 1}`;
+    jobs.push({ source, label: `Manual feed ${i + 1}`, run: (d) => ingestAwinFeed(url, "awin", source, d) });
+  }
+  try {
+    for (const f of webgainsFeeds()) {
+      const source = `webgains:${f.domain}`;
+      jobs.push({ source, label: `${f.name} (Webgains)`, run: (d) => ingestWebgainsFeed(f, source, d) });
+    }
+    for (const f of directFeeds()) {
+      const source = `direct:${f.domain ?? f.name}`;
+      jobs.push({ source, label: `${f.name} (direct)`, run: (d) => ingestDirectFeed(f, source, d) });
+    }
+  } catch (err) {
+    await sendAlert("Feed config unreadable", (err as Error).message);
+    results.push({ feed: "feed config", error: (err as Error).message });
   }
 
   // Oldest first, so feeds that missed out last time go first tonight.
@@ -53,7 +70,7 @@ export async function GET(req: Request) {
       continue;
     }
     try {
-      const r = await ingestAwinFeed(job.url, job.format, job.source, started + 280_000);
+      const r = await job.run(started + 280_000);
       results.push({ feed: job.label, rowsIn: r.rowsIn, rowsOk: r.rowsOk, errors: r.errors });
     } catch (err) {
       const message = (err as Error).message;
