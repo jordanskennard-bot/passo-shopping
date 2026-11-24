@@ -32,6 +32,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={c.lang}>
       <head>
+        {/* impact.com site ownership check. impact asks for value=, so content= is added too. */}
+        <meta
+          name="impact-site-verification"
+          content="fa87e8ce-145b-4ec1-bbb6-74042cc848e1"
+          {...{ value: "fa87e8ce-145b-4ec1-bbb6-74042cc848e1" }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
