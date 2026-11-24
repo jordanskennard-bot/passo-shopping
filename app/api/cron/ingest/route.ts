@@ -3,6 +3,7 @@ import { authorised } from "@/lib/cron";
 import { awinFeedUrls, ingestAwinFeed, listAwinFeeds, type AwinFormat } from "@/lib/feeds/awin";
 import { ingestWebgainsFeed, webgainsFeeds } from "@/lib/feeds/webgains";
 import { directFeeds, ingestDirectFeed } from "@/lib/feeds/direct";
+import { activeStoreFeeds } from "@/lib/direct-stores";
 import type { IngestResult } from "@/lib/ingest";
 import { sendAlert } from "@/lib/alert";
 import { getDb } from "@/lib/db";
@@ -45,7 +46,8 @@ export async function GET(req: Request) {
       const source = `webgains:${f.country}:${f.domain}`;
       jobs.push({ source, label: `${f.name} (Webgains)`, run: (d) => ingestWebgainsFeed(f, source, d) });
     }
-    for (const f of directFeeds()) {
+    const stores = await activeStoreFeeds(await getDb()).catch(() => []);
+    for (const f of [...directFeeds(), ...stores]) {
       const source = `direct:${f.country}:${f.domain ?? f.name}`;
       jobs.push({ source, label: `${f.name} (direct)`, run: (d) => ingestDirectFeed(f, source, d) });
     }

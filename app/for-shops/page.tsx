@@ -1,5 +1,5 @@
 import { currentCountry } from "@/lib/request-country";
-import { localPath } from "@/lib/countries";
+import { enabledCountries, localPath } from "@/lib/countries";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { company, site } from "@/lib/config";
@@ -10,8 +10,12 @@ import { Prose } from "@/components/Page";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "For shops" };
 
-export default async function ForShops() {
+type Props = { searchParams: Promise<{ sent?: string; error?: string }> };
+
+export default async function ForShops({ searchParams }: Props) {
   const c = await currentCountry();
+  const { sent, error } = await searchParams;
+  const countries = enabledCountries();
   const stats = await catalogueStats(c.code);
   return (
     <Prose eyebrow="For shops" title={`List your products on ${site.name}`}>
@@ -31,8 +35,9 @@ export default async function ForShops() {
         programme there.
       </p>
       <p>
-        <strong>Directly.</strong> Send us the address of the Google Shopping feed you already use for Google Merchant
-        Center, in XML or CSV. Links go straight to your shop with no tracking and no fee.
+        <strong>Directly.</strong> Use the form below with the Google Shopping feed you already use for Google
+        Merchant Center (XML or CSV), or just your Shopify store address. Links go straight to your shop with no
+        tracking and no fee.
       </p>
 
       <h2>What we need</h2>
@@ -48,8 +53,66 @@ export default async function ForShops() {
         own name and prices, refreshed daily from your feed.
       </p>
 
+
+      <h2 id="apply">List your shop directly</h2>
+      {sent && <p className="notice">Thanks. We check every request by hand and will email you within two working days.</p>}
+      {error && <p className="notice error">{error}</p>}
+      {!sent && (
+        <form className="apply" method="post" action="/api/direct-stores">
+          <label>
+            Shop name
+            <input name="name" required maxLength={120} />
+          </label>
+          <label>
+            Website
+            <input name="website" required placeholder="www.yourshop.co.uk" />
+          </label>
+          <fieldset>
+            <legend>Your product data</legend>
+            <label className="inline">
+              <input type="radio" name="type" value="shopify" defaultChecked /> My shop runs on Shopify (we read your
+              public product list)
+            </label>
+            <label className="inline">
+              <input type="radio" name="type" value="google" /> I have a Google Shopping feed (XML or CSV)
+            </label>
+          </fieldset>
+          <label>
+            Feed address (Google feed only)
+            <input name="feed_url" placeholder="https://" />
+          </label>
+          <label>
+            Country your prices are for
+            <select name="country" defaultValue={c.code}>
+              {countries.map((x) => (
+                <option key={x.code} value={x.code}>
+                  {x.code === "GB" ? "United Kingdom" : x.inName} ({x.currency})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Standard delivery cost, if it is the same for every order (optional)
+            <input name="delivery" inputMode="decimal" placeholder="3.95" />
+          </label>
+          <label>
+            Contact email
+            <input name="email" type="email" required />
+          </label>
+          <label className="hp" aria-hidden="true">
+            Leave this empty
+            <input name="website_confirm" tabIndex={-1} autoComplete="off" />
+          </label>
+          <label className="inline">
+            <input type="checkbox" name="consent" value="yes" required /> I run this shop, it delivers to the country
+            above, and {company.legalName} may list its products on {site.name} and link to and read its product pages.
+          </label>
+          <button type="submit">Send request</button>
+        </form>
+      )}
+
       <p>
-        To get listed or ask a question, email <a href={`mailto:${company.contactEmail}`}>{company.contactEmail}</a> or
+        To ask a question, email <a href={`mailto:${company.contactEmail}`}>{company.contactEmail}</a> or
         use the <Link href={localPath(c, "/contact")}>contact page</Link>.
       </p>
     </Prose>

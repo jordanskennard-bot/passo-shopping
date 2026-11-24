@@ -406,3 +406,48 @@ describe("countries", () => {
     expect(both.map((f) => [f.advertiserName, f.country])).toEqual([["UK Shop", "GB"], ["Irish Shop", "IE"]]);
   });
 });
+
+describe("direct shop requests", () => {
+  const good = {
+    name: "Lamp Shop",
+    website: "www.lampshop.example",
+    type: "shopify",
+    feed_url: "",
+    country: "GB",
+    delivery: "3.95",
+    email: "Owner@LampShop.example",
+    consent: "yes",
+  };
+
+  it("validates the form", async () => {
+    const { validateSubmission } = await import("@/lib/direct-stores");
+    const ok = validateSubmission(good, ["GB"]);
+    expect(ok).toEqual({
+      ok: true,
+      value: {
+        name: "Lamp Shop", domain: "lampshop.example", type: "shopify", url: "https://www.lampshop.example",
+        country: "GB", deliveryPence: 395, contactEmail: "owner@lampshop.example",
+      },
+    });
+    const bad = validateSubmission({ ...good, consent: "", email: "x", country: "IE", type: "google", feed_url: "ftp://x" }, ["GB"]);
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.errors).toHaveLength(4);
+    expect(validateSubmission({ ...good, website_confirm: "bot" }, ["GB"])).toEqual({ ok: false, errors: ["spam"] });
+  });
+
+  it("holds requests as pending until approved, then hands them to the nightly run", async () => {
+    const m = await import("@/lib/direct-stores");
+    m.resetEnsured();
+    const v = m.validateSubmission(good, ["GB"]);
+    if (!v.ok) throw new Error("invalid");
+    expect(await m.createSubmission(db, v.value)).toBe("created");
+    expect(await m.createSubmission(db, v.value)).toBe("exists");
+    expect(await m.activeStoreFeeds(db)).toEqual([]);
+    const [row] = await m.listStores(db);
+    expect(row.status).toBe("pending");
+    await m.setStoreStatus(db, row.id, "active");
+    expect(await m.activeStoreFeeds(db)).toEqual([
+      { name: "Lamp Shop", domain: "lampshop.example", url: "https://www.lampshop.example", type: "shopify", deliveryPence: 395, country: "GB" },
+    ]);
+  });
+});

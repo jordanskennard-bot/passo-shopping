@@ -127,3 +127,17 @@ table.offers .best { color: var(--forest); font-size: 0.78rem; display: block; }
 @media (max-width: 760px) {
   .product .thumb { max-width: 220px; }
 }
+
+/* For shops form */
+form.apply { display: grid; gap: 14px; max-width: 34rem; margin: 16px 0 24px; }
+form.apply label { display: grid; gap: 4px; font-size: 0.9rem; }
+form.apply label.inline { display: flex; gap: 8px; align-items: flex-start; }
+form.apply input:not([type]), form.apply input[type="email"], form.apply select {
+  font: inherit; padding: 8px 10px; border: 1px solid var(--ink-4); background: var(--paper);
+}
+form.apply fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+form.apply legend { font-size: 0.9rem; margin-bottom: 4px; }
+form.apply button { justify-self: start; font: inherit; padding: 10px 16px; background: var(--ink); color: var(--paper); border: 0; cursor: pointer; }
+form.apply .hp { position: absolute; left: -9999px; }
+.notice { padding: 10px 12px; border: 1px solid var(--ink-3); }
+.notice.error { border-color: #a33; }
